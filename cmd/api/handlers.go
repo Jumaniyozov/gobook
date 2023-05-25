@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/jumaniyozov/gobook/internal/data"
 	"net/http"
 )
 
@@ -36,4 +37,21 @@ func (app *application) Login(w http.ResponseWriter, r *http.Request) {
 		app.errorLog.Println(err)
 		return
 	}
+}
+
+func (app *application) GetAllUsers(w http.ResponseWriter, r *http.Request) {
+
+	var users data.User
+	all, err := users.GetAll()
+	if err != nil {
+		app.errorLog.Println(err)
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, all)
+	if err != nil {
+		app.errorLog.Println(err)
+		return
+	}
+
 }

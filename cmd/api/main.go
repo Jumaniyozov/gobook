@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"github.com/jumaniyozov/gobook/internal/data"
+	"github.com/jumaniyozov/gobook/internal/driver"
 	"log"
 	"net/http"
 	"os"
@@ -15,6 +17,7 @@ type application struct {
 	config   config
 	infoLog  *log.Logger
 	errorLog *log.Logger
+	models   data.Models
 }
 
 func main() {
@@ -24,13 +27,22 @@ func main() {
 	infoLog := log.New(os.Stdout, "INFO:\t", log.Ldate|log.Ltime)
 	errorLog := log.New(os.Stdout, "Error:\t", log.Ldate|log.Ltime|log.Lshortfile)
 
+	dsn := os.Getenv("DSN")
+
+	db, err := driver.ConnectPostgres(dsn)
+	if err != nil {
+		errorLog.Fatal(err)
+	}
+	defer db.SQL.Close()
+
 	app := &application{
 		config:   cfg,
 		infoLog:  infoLog,
 		errorLog: errorLog,
+		models:   data.New(db.SQL),
 	}
 
-	err := app.serve()
+	err = app.serve()
 	if err != nil {
 		app.errorLog.Fatal(err)
 	}
