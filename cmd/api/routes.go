@@ -19,8 +19,14 @@ func (app *application) routes() http.Handler {
 		MaxAge:           300,
 	}))
 
+	mux.Get("/users/login", app.Login)
 	mux.Post("/users/login", app.Login)
+
 	mux.Get("/users/all", app.GetAllUsers)
+	mux.Post("/users/add", app.AddUser)
+	mux.Get("/test-generate-token", app.GenerateToken)
+	mux.Get("/test-save-token", app.SaveToken)
+	mux.Get("/test-validate-token", app.ValidateToken)
 
 	return mux
 }

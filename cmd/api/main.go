@@ -10,7 +10,7 @@ import (
 )
 
 type config struct {
-	port int
+	port int // what port do we want the web server to listen on
 }
 
 type application struct {
@@ -24,14 +24,13 @@ func main() {
 	var cfg config
 	cfg.port = 8081
 
-	infoLog := log.New(os.Stdout, "INFO:\t", log.Ldate|log.Ltime)
-	errorLog := log.New(os.Stdout, "Error:\t", log.Ldate|log.Ltime|log.Lshortfile)
+	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
+	errorLog := log.New(os.Stdout, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
 
 	dsn := os.Getenv("DSN")
-
 	db, err := driver.ConnectPostgres(dsn)
 	if err != nil {
-		errorLog.Fatal(err)
+		log.Fatal("Cannot connect to database")
 	}
 	defer db.SQL.Close()
 
@@ -44,7 +43,7 @@ func main() {
 
 	err = app.serve()
 	if err != nil {
-		app.errorLog.Fatal(err)
+		log.Fatal(err)
 	}
 }
 

@@ -3,8 +3,9 @@ package driver
 import (
 	"database/sql"
 	"fmt"
-	_ "github.com/jackc/pgx/v5/stdlib"
 	"time"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 type DB struct {
@@ -13,11 +14,9 @@ type DB struct {
 
 var dbConn = &DB{}
 
-const (
-	maxOpenDBConn = 5
-	maxIdleDBConn = 5
-	maxDBLifeTime = 5 * time.Minute
-)
+const maxOpenDbConn = 5
+const maxIdleDbConn = 5
+const maxDbLifeTime = 5 * time.Minute
 
 func ConnectPostgres(dsn string) (*DB, error) {
 	d, err := sql.Open("pgx", dsn)
@@ -25,9 +24,9 @@ func ConnectPostgres(dsn string) (*DB, error) {
 		return nil, err
 	}
 
-	d.SetMaxOpenConns(maxOpenDBConn)
-	d.SetMaxIdleConns(maxIdleDBConn)
-	d.SetConnMaxLifetime(maxDBLifeTime)
+	d.SetMaxOpenConns(maxOpenDbConn)
+	d.SetMaxIdleConns(maxIdleDbConn)
+	d.SetConnMaxLifetime(maxDbLifeTime)
 
 	err = testDB(d)
 	if err != nil {
@@ -35,7 +34,6 @@ func ConnectPostgres(dsn string) (*DB, error) {
 	}
 
 	dbConn.SQL = d
-
 	return dbConn, nil
 }
 
@@ -43,9 +41,9 @@ func testDB(d *sql.DB) error {
 	err := d.Ping()
 	if err != nil {
 		fmt.Println("Error!", err)
-	} else {
-		fmt.Println("*** Pinged database successfully")
+		return err
 	}
+	fmt.Println("*** Pinged database successfully! ***")
 
 	return nil
 }
