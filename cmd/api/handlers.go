@@ -32,7 +32,6 @@ func (app *application) Login(w http.ResponseWriter, r *http.Request) {
 		_ = app.writeJSON(w, http.StatusBadRequest, payload)
 	}
 
-	// TODO authenticate
 	app.infoLog.Println(creds.UserName, creds.Password)
 
 	user, err := app.models.User.GetByEmail(creds.UserName)
@@ -63,10 +62,12 @@ func (app *application) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	user.Password = ""
+
 	payload = jsonResponse{
 		Error:   false,
 		Message: "signed in",
-		Data:    envelope{"token": token},
+		Data:    envelope{"token": token, "user": user},
 	}
 
 	err = app.writeJSON(w, http.StatusOK, payload)
@@ -179,4 +180,29 @@ func (app *application) ValidateToken(w http.ResponseWriter, r *http.Request) {
 	payload.Data = valid
 
 	app.writeJSON(w, http.StatusOK, payload)
+}
+
+func (app *application) Logout(w http.ResponseWriter, r *http.Request) {
+	var requestPayload struct {
+		Token string `json:"token"`
+	}
+
+	err := app.readJSON(w, r, &requestPayload)
+	if err != nil {
+		app.errorJSON(w, errors.New("invalid json"))
+		return
+	}
+
+	err = app.models.Token.DeleteByToken(requestPayload.Token)
+	if err != nil {
+		app.errorJSON(w, errors.New("invalid json"))
+		return
+	}
+
+	payload := jsonResponse{
+		Error:   false,
+		Message: "logged out",
+	}
+
+	_ = app.writeJSON(w, http.StatusOK, payload)
 }
