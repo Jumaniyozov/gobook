@@ -22,7 +22,8 @@ create table tokens
             primary key,
     user_id    integer
         constraint tokens_users_id_fk
-            references users,
+            references users
+            on update cascade on delete cascade,
     email      varchar(255)             not null,
     token      varchar(255)             not null,
     token_hash bytea                    not null,
