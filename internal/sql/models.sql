@@ -1,15 +1,16 @@
 create table users
 (
-    id         serial
+    id          serial
         constraint users_pk
             primary key,
-    email      varchar(255) not null
+    email       varchar(255) not null
         unique,
-    first_name varchar(255) not null,
-    last_name  varchar(255) not null,
-    password   varchar(60)  not null,
-    created_at timestamp with time zone default now(),
-    updated_at timestamp with time zone default now()
+    first_name  varchar(255) not null,
+    last_name   varchar(255) not null,
+    password    varchar(60)  not null,
+    created_at  timestamp with time zone default now(),
+    updated_at  timestamp with time zone default now(),
+    user_active integer                  default 0
 );
 
 alter table users

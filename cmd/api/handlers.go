@@ -1,13 +1,19 @@
 package main
 
 import (
+	"encoding/base64"
 	"errors"
+	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/jumaniyozov/gobook/internal/data"
+	"github.com/mozillazg/go-slugify"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 )
+
+var staticPath = "./static/"
 
 type jsonResponse struct {
 	Error   bool   `json:"error"`
@@ -33,8 +39,6 @@ func (app *application) Login(w http.ResponseWriter, r *http.Request) {
 		payload.Message = "invalid json supplied, or json missing entirely"
 		_ = app.writeJSON(w, http.StatusBadRequest, payload)
 	}
-
-	app.infoLog.Println(creds.UserName, creds.Password)
 
 	user, err := app.models.User.GetByEmail(creds.UserName)
 	if err != nil {
@@ -386,6 +390,216 @@ func (app *application) ValidateToken(w http.ResponseWriter, r *http.Request) {
 		Error:   false,
 		Message: "Valid",
 		Data:    valid,
+	}
+
+	err = app.writeJSON(w, http.StatusOK, payload)
+	if err != nil {
+		app.errorLog.Println(err)
+		app.errorJSON(w, err)
+		return
+	}
+}
+
+func (app *application) AllBooks(w http.ResponseWriter, r *http.Request) {
+	books, err := app.models.Book.GetAll()
+	if err != nil {
+		app.errorLog.Println(err)
+		app.errorJSON(w, err)
+		return
+	}
+
+	payload := jsonResponse{
+		Error:   false,
+		Message: "success",
+		Data:    envelope{"books": books},
+	}
+
+	err = app.writeJSON(w, http.StatusOK, payload)
+	if err != nil {
+		app.errorLog.Println(err)
+		app.errorJSON(w, err)
+		return
+	}
+}
+
+func (app *application) OneBook(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+
+	book, err := app.models.Book.GetOneBySlug(slug)
+	if err != nil {
+		app.errorLog.Println(err)
+		app.errorJSON(w, err)
+		return
+	}
+
+	payload := jsonResponse{
+		Error: false,
+		Data:  book,
+	}
+
+	err = app.writeJSON(w, http.StatusOK, payload)
+	if err != nil {
+		app.errorLog.Println(err)
+		app.errorJSON(w, err)
+		return
+	}
+}
+
+func (app *application) AuthorsAll(w http.ResponseWriter, r *http.Request) {
+	all, err := app.models.Author.All()
+	if err != nil {
+		app.errorLog.Println(err)
+		app.errorJSON(w, err)
+		return
+	}
+
+	type selectData struct {
+		Value int    `json:"value"`
+		Text  string `json:"text"`
+	}
+
+	var results []selectData
+
+	for _, x := range all {
+		author := selectData{
+			Value: x.ID,
+			Text:  x.AuthorName,
+		}
+
+		results = append(results, author)
+	}
+
+	payload := jsonResponse{
+		Error: false,
+		Data:  results,
+	}
+
+	err = app.writeJSON(w, http.StatusOK, payload)
+	if err != nil {
+		app.errorLog.Println(err)
+		app.errorJSON(w, err)
+		return
+	}
+}
+
+func (app *application) EditBok(w http.ResponseWriter, r *http.Request) {
+	var requestPayload struct {
+		ID              int    `json:"id"`
+		Title           string `json:"title"`
+		AuthorID        int    `json:"author_id"`
+		PublicationYear int    `json:"publication_year"`
+		Description     string `json:"description"`
+		CoverBase64     string `json:"cover"`
+		GenreIDs        []int  `json:"genre_ids"`
+	}
+
+	err := app.readJSON(w, r, &requestPayload)
+	if err != nil {
+		app.errorLog.Println(err)
+		app.errorJSON(w, err)
+		return
+	}
+
+	book := data.Book{
+		ID:              requestPayload.ID,
+		Title:           requestPayload.Title,
+		AuthorID:        requestPayload.AuthorID,
+		PublicationYear: requestPayload.PublicationYear,
+		Description:     requestPayload.Description,
+		Slug:            slugify.Slugify(requestPayload.Title),
+		GenreIDs:        requestPayload.GenreIDs,
+	}
+
+	if len(requestPayload.CoverBase64) > 0 {
+		decoded, err := base64.StdEncoding.DecodeString(requestPayload.CoverBase64)
+		if err != nil {
+			app.errorLog.Println(err)
+			app.errorJSON(w, err)
+			return
+		}
+
+		if err := os.WriteFile(fmt.Sprintf("%s/covers/%s.jpg", staticPath, book.Slug), decoded, 0666); err != nil {
+			app.errorLog.Println(err)
+			app.errorJSON(w, err)
+			return
+		}
+
+		if book.ID == 0 {
+			_, err := app.models.Book.Insert(book)
+			if err != nil {
+				app.errorLog.Println(err)
+				app.errorJSON(w, err)
+				return
+			}
+		} else {
+			err := book.Update()
+			if err != nil {
+				app.errorLog.Println(err)
+				app.errorJSON(w, err)
+				return
+			}
+		}
+	}
+
+	payload := jsonResponse{
+		Error:   false,
+		Message: "Changes saved",
+	}
+
+	err = app.writeJSON(w, http.StatusAccepted, payload)
+	if err != nil {
+		app.errorLog.Println(err)
+		app.errorJSON(w, err)
+		return
+	}
+}
+
+func (app *application) BookByID(w http.ResponseWriter, r *http.Request) {
+	bookID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		app.errorLog.Println(err)
+		app.errorJSON(w, err)
+		return
+	}
+
+	book, err := app.models.Book.GetOneById(bookID)
+	if err != nil {
+		app.errorLog.Println(err)
+		app.errorJSON(w, err)
+		return
+	}
+
+	payload := jsonResponse{
+		Error: false,
+		Data:  book,
+	}
+
+	err = app.writeJSON(w, http.StatusOK, payload)
+	if err != nil {
+		app.errorLog.Println(err)
+		app.errorJSON(w, err)
+		return
+	}
+}
+
+func (app *application) DeleteBook(w http.ResponseWriter, r *http.Request) {
+	bookID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		app.errorLog.Println(err)
+		app.errorJSON(w, err)
+		return
+	}
+
+	err = app.models.Book.DeleteByID(bookID)
+	if err != nil {
+		app.errorLog.Println(err)
+		app.errorJSON(w, err)
+		return
+	}
+
+	payload := jsonResponse{
+		Error:   false,
+		Message: "Book successfully deleted",
 	}
 
 	err = app.writeJSON(w, http.StatusOK, payload)
